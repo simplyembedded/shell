@@ -1,33 +1,43 @@
 /**
  * \file shell.h
- * \author Chris Karaplis
- * \brief 
+ * \brief Minimal POSIX shell implementation
  *
- * Copyright (c) 2022 Simply Embedded Inc.. All Rights Reserved.
- *
- * All rights reserved.
+ * Copyright (c) 2022 Simply Embedded Inc. 
+ * All Rights Reserved.
  * 
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, 
- *    this list of conditions and the following disclaimer.
- * 
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE 
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE 
- * POSSIBILITY OF SUCH DAMAGE.
+ * SPDX-License-Identifier: MIT
+ */
+
+#include "shell.h"
+#include "shell_config.h"
+
+#include <stdio.h>
+#include <string.h>
+
+#define PROMPT_PREFIX          "\n$ "
+#define is_space(x)             ((x)==' ' || (x)=='\t')
+
+struct _input {
+    char buffer[SHELL_CONFIG_INPUT_BUFFER_MAX];
+    size_t len;
+};
+
+static int _parse(char *buffer, size_t len);
+
+void shell(void)
+{
+    static struct _input history[SHELL_CONFIG_HISTORY_MAX];
+    size_t input_idx = 0;
+    int seq = 0;
+    int dir = 0;
+    
+    memset(history, 0, sizeof(history));
+
+    PROMPT();
+
+ * This software is licensed under terms that can be found in the 
+ * LICENSE file in the root directory of this software component.
+ * If no LICENSE file comes with this software, it is provided AS-IS.
  */
 
 #ifndef _SHELL_H_ 
