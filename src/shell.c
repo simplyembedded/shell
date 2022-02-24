@@ -13,74 +13,90 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <stdbool.h>
 
 #define PROMPT_PREFIX          "\n$ "
 #define is_space(x)             ((x)==' ' || (x)=='\t')
 
-struct _input {
+struct input 
+{
     char buffer[SHELL_CONFIG_INPUT_BUFFER_MAX];
     size_t len;
 };
 
-static int _parse(char *buffer, size_t len);
-
-void shell(void)
+struct shell_ctx
 {
-    static struct _input history[SHELL_CONFIG_HISTORY_MAX];
-    size_t input_idx = 0;
-    int seq = 0;
-    int dir = 0;
+    const struct shell_cmd *cmd_list;
+    size_t cmd_list_len;
+    struct input cmd_history[SHELL_CONFIG_HISTORY_MAX]; 
+    size_t cmd_idx;
+    bool seq;
+    bool dir; 
+};
+
+static int _parse(struct shell_ctx *ctx, char *buffer, size_t len);
+
+void shell(const struct shell_cmd *cmd_list, size_t cmd_list_len)
+{
+    static struct shell_ctx ctx; 
     
-    memset(history, 0, sizeof(history));
+    memset(&ctx, 0, sizeof(ctx));
+
+    ctx.cmd_list = cmd_list;
+    ctx.cmd_list_len = cmd_list_len;
 
     PROMPT();
 
     while (1) {
-        struct _input *input = &(history[input_idx]);
+        struct input *input = &ctx.cmd_history[ctx.cmd_idx];
         int c = getchar();
         if ((c == '\n') || (c == '\r')) {
             if (input->len > 0) {
-                if(_parse(input->buffer, input->len) < 0) {
+                if(_parse(&ctx, input->buffer, input->len) < 0) {
                     break;
                 } else {
-                    if (input_idx < SHELL_CONFIG_HISTORY_MAX) {
-                        input_idx++;
+                    if (ctx.cmd_idx < SHELL_CONFIG_HISTORY_MAX) {
+                        ctx.cmd_idx++;
                     }
                 }
             }                    
 
             PROMPT();
 		} else if (c == 0x1B) {
-			seq = 1;   
-		} else if (seq && (c == 0x5B)) {
-			dir = 1;
-		} else if ((seq == 1) && (dir == 1) && (c == 0x41)) {
+			ctx.seq = true; 
+		} else if (ctx.seq && (c == 0x5B)) {
+			ctx.dir = true;
+		} else if ((ctx.seq == true) && (ctx.dir == true) && (c == 0x41)) {
 			/* up arrow */
-			seq = dir = 0;
+			ctx.seq = false;
+            ctx.dir = false;
 
-            if (input_idx > 0) {
-                input_idx--;
+            if (ctx.cmd_idx > 0) {
+                ctx.cmd_idx--;
                 printf("\r$ ");
-				fputs(history[input_idx].buffer, stdout);
+				fputs(ctx.cmd_history[ctx.cmd_idx].buffer, stdout);
 			}
-		} else if ((seq == 1) && (dir == 1) && (c == 0x42)) {
+		} else if ((ctx.seq == true) && (ctx.dir == true) && (c == 0x42)) {
 		    /* down arrow */
-			seq = dir = 0;
+			ctx.seq = false; 
+            ctx.dir = false;
 			
-             if (input_idx < SHELL_CONFIG_HISTORY_MAX) {
+             if (ctx.cmd_idx < SHELL_CONFIG_HISTORY_MAX) {
                  if (input->len > 0) {
-                    input_idx++;
+                    ctx.cmd_idx++;
                     printf("\r$ ");
-				    fputs(history[input_idx].buffer, stdout);
+				    fputs(ctx.cmd_history[ctx.cmd_idx].buffer, stdout);
                  }
 			}
-		} else if ((seq == 1) && (dir == 1) && (c == 0x43)) {
+		} else if ((ctx.seq == true) && (ctx.dir == true) && (c == 0x43)) {
 			/* right arrow */
-			seq = dir = 0;
-		} else if ((seq == 1) && (dir == 1) && (c == 0x44)) {
+			ctx.seq = false;
+            ctx.dir = false;
+		} else if ((ctx.seq == true) && (ctx.dir == true) && (c == 0x44)) {
 			/* left arrow */
 			putchar('\b');
-			seq = dir = 0;
+			ctx.seq = false;
+            ctx.dir = false;
          } else if ((c >= 0x20) && (c < 0x7E)) {
              if (input->len < SHELL_CONFIG_INPUT_BUFFER_MAX) {
                  putchar(c);
@@ -95,7 +111,7 @@ void shell(void)
     }
 }
 
-static int _parse(char *buffer, size_t len)
+static int _parse(struct shell_ctx *ctx, char *buffer, size_t len)
 {
     if (!strcmp(buffer, "exit")) {
         return -1;
@@ -123,16 +139,16 @@ static int _parse(char *buffer, size_t len)
             }
         }
 
-        for(i = 0; i < shell_cmd_list_len; i++) {
-            if(!strcmp(shell_cmd_list[i].name, argv[0])) {
-                if(shell_cmd_list[i].funcptr(argc, argv) != 0) {
-                    printf("%s: %s\n\tUsage %s", shell_cmd_list[i].name, shell_cmd_list[i].desc, shell_cmd_list[i].usage);
+        for(i = 0; i < ctx->cmd_list_len; i++) {
+            if(!strcmp(ctx->cmd_list[i].name, argv[0])) {
+                if(ctx->cmd_list[i].funcptr(argc, argv) != 0) {
+                    printf("%s: %s\n\tUsage %s", ctx->cmd_list[i].name, ctx->cmd_list[i].desc, ctx->cmd_list[i].usage);
                 }
                 break;
             } 
         }
 
-        if (i == shell_cmd_list_len) {
+        if (i == ctx->cmd_list_len) {
             printf("\n%s: command not found\n", argv[0]);
         }
     }
