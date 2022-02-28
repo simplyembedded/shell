@@ -118,7 +118,7 @@ static int _parse(struct shell_ctx *ctx, char *buffer, size_t len)
     } else {    
         char scratch[SHELL_CONFIG_INPUT_BUFFER_MAX];
         int argc = 1;
-        char *argv[SHELL_CONFIG_INPUT_ARGS_MAX];
+        const char *argv[SHELL_CONFIG_INPUT_ARGS_MAX];
         size_t i = 0;
   
         memcpy(scratch, buffer, len);
