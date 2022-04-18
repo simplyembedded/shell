@@ -51,6 +51,7 @@ void shell(const struct shell_cmd *cmd_list, size_t cmd_list_len)
         struct input *input = &ctx.cmd_history[ctx.cmd_idx];
         int c = SHELL_GETC();
         if ((c == '\r') || (c == '\n')) {
+            SHELL_PUTS("\n\r");
             if (input->len > 0) {
                 if(_parse(&ctx, input->buffer, input->len) < 0) {
                     break;
