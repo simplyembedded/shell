@@ -119,7 +119,7 @@ static int _parse(struct shell_ctx *ctx, char *buffer, size_t len)
     } else {    
         char scratch[SHELL_CONFIG_INPUT_BUFFER_MAX];
         int argc = 1;
-        char *argv[SHELL_CONFIG_INPUT_ARGS_MAX];
+        const char *argv[SHELL_CONFIG_INPUT_ARGS_MAX];
         size_t i = 0;
   
         memcpy(scratch, buffer, len);
@@ -146,7 +146,7 @@ static int _parse(struct shell_ctx *ctx, char *buffer, size_t len)
                     SHELL_PUTS(ctx->cmd_list[i].name);
                     SHELL_PUTS(": ");
                     SHELL_PUTS(ctx->cmd_list[i].desc);
-					SHELL_PUTS("\n\tUsage ");
+					SHELL_PUTS("\n\r\tUsage ");
 					SHELL_PUTS(ctx->cmd_list[i].usage);
                 }
                 break;
@@ -156,7 +156,7 @@ static int _parse(struct shell_ctx *ctx, char *buffer, size_t len)
         if (i == ctx->cmd_list_len) {
         	SHELL_PUTS("\n");
         	SHELL_PUTS(argv[0]);
-			SHELL_PUTS(": Command not found\n");
+			SHELL_PUTS(": Command not found\n\r");
         }
     }
     
