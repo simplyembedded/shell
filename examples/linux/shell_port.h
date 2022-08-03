@@ -1,5 +1,5 @@
 /**
- * \file shell_config.h
+ * \file shell_port.h
  * \author Chris Karaplis
  * \brief 
  *
@@ -7,8 +7,8 @@
  * All rights reserved.
  */
 
-#ifndef  _SHELL_CONFIG_H_
-#define  _SHELL_CONFIG_H_
+#ifndef  _SHELL_PORT_H_
+#define  _SHELL_PORT_H_
 
 #include <stdio.h>
 
@@ -19,6 +19,6 @@
 #define SHELL_PUTS(s)                       fputs(s, stdout)
 #define SHELL_GETC()                        getc(stdin)
 
-#endif /* _SHELL_CONFIG_H_ */
+#endif /* _SHELL_PORT_H_ */
 
 

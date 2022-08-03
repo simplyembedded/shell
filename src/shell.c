@@ -9,13 +9,12 @@
  */
 
 #include "shell.h"
-#include "shell_config.h"
+#include "shell_port.h"
 
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
 
-#define PROMPT_PREFIX          "\r\n$ "
 #define is_space(x)             ((x)==' ' || (x)=='\t')
 
 struct input 
@@ -51,7 +50,7 @@ void shell(const struct shell_cmd *cmd_list, size_t cmd_list_len)
         struct input *input = &ctx.cmd_history[ctx.cmd_idx];
         int c = SHELL_GETC();
         if ((c == '\r') || (c == '\n')) {
-            SHELL_PUTS("\n\r");
+            SHELL_PUTS(NEWLINE_TOKEN);
             if (input->len > 0) {
                 if(_parse(&ctx, input->buffer, input->len) < 0) {
                     break;
@@ -95,17 +94,19 @@ void shell(const struct shell_cmd *cmd_list, size_t cmd_list_len)
             ctx.dir = false;
 		} else if ((ctx.seq == true) && (ctx.dir == true) && (c == 0x44)) {
 			/* left arrow */
-			putchar('\b');
+			SHELL_PUTCHAR('\b');
 			ctx.seq = false;
             ctx.dir = false;
          } else if ((c >= 0x20) && (c < 0x7E)) {
              if (input->len < SHELL_CONFIG_INPUT_BUFFER_MAX) {
-                 SHELL_PUTCHAR(c);
+                #if SHELL_ECHO
+                    SHELL_PUTCHAR(c);
+                #endif
                  input->buffer[input->len++] = (char) c;
              }
          } else if ((c == 0x08) || (c == 0x7F)) {
             if(input->len > 0) {
-            	SHELL_PUTS("\b \b");
+            	SHELL_PUTS(BACKSPACE_CLEAR_TOKEN);
                 input->buffer[--input->len] = '\0';
             }
         }
@@ -154,9 +155,9 @@ static int _parse(struct shell_ctx *ctx, char *buffer, size_t len)
         }
 
         if (i == ctx->cmd_list_len) {
-        	SHELL_PUTS("\n");
+        	SHELL_PUTS(NEWLINE_TOKEN);
         	SHELL_PUTS(argv[0]);
-			SHELL_PUTS(": Command not found\n");
+			SHELL_PUTS(": Command not found"NEWLINE_TOKEN);
         }
     }
     
