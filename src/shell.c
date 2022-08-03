@@ -44,13 +44,13 @@ void shell(const struct shell_cmd *cmd_list, size_t cmd_list_len)
     ctx.cmd_list = cmd_list;
     ctx.cmd_list_len = cmd_list_len;
 
-    SHELL_PUTS(PROMPT_PREFIX);
+    shell_puts(SHELL_PROMPT);
 
     while (1) {
         struct input *input = &ctx.cmd_history[ctx.cmd_idx];
-        int c = SHELL_GETC();
+        int c = shell_getchar();
         if ((c == '\r') || (c == '\n')) {
-            SHELL_PUTS(NEWLINE_TOKEN);
+            shell_puts(SHELL_NEWLINE);
             if (input->len > 0) {
                 if(_parse(&ctx, input->buffer, input->len) < 0) {
                     break;
@@ -61,7 +61,7 @@ void shell(const struct shell_cmd *cmd_list, size_t cmd_list_len)
                 }
             }                    
 
-            SHELL_PUTS(PROMPT_PREFIX);
+            shell_puts(SHELL_PROMPT);
 		} else if (c == 0x1B) {
 			ctx.seq = true; 
 		} else if (ctx.seq && (c == 0x5B)) {
@@ -73,8 +73,8 @@ void shell(const struct shell_cmd *cmd_list, size_t cmd_list_len)
 
             if (ctx.cmd_idx > 0) {
                 ctx.cmd_idx--;
-                SHELL_PUTS("\r$ ");
-                SHELL_PUTS(ctx.cmd_history[ctx.cmd_idx].buffer);
+                shell_puts("\r$ ");
+                shell_puts(ctx.cmd_history[ctx.cmd_idx].buffer);
 			}
 		} else if ((ctx.seq == true) && (ctx.dir == true) && (c == 0x42)) {
 		    /* down arrow */
@@ -84,8 +84,8 @@ void shell(const struct shell_cmd *cmd_list, size_t cmd_list_len)
              if (ctx.cmd_idx < SHELL_CONFIG_HISTORY_MAX) {
                  if (input->len > 0) {
                     ctx.cmd_idx++;
-                    SHELL_PUTS("\r$ ");
-                    SHELL_PUTS(ctx.cmd_history[ctx.cmd_idx].buffer);
+                    shell_puts("\r$ ");
+                    shell_puts(ctx.cmd_history[ctx.cmd_idx].buffer);
                  }
 			}
 		} else if ((ctx.seq == true) && (ctx.dir == true) && (c == 0x43)) {
@@ -94,19 +94,19 @@ void shell(const struct shell_cmd *cmd_list, size_t cmd_list_len)
             ctx.dir = false;
 		} else if ((ctx.seq == true) && (ctx.dir == true) && (c == 0x44)) {
 			/* left arrow */
-			SHELL_PUTCHAR('\b');
+			shell_putchar('\b');
 			ctx.seq = false;
             ctx.dir = false;
          } else if ((c >= 0x20) && (c < 0x7E)) {
              if (input->len < SHELL_CONFIG_INPUT_BUFFER_MAX) {
                 #if SHELL_ECHO
-                    SHELL_PUTCHAR(c);
+                    shell_putchar(c);
                 #endif
                  input->buffer[input->len++] = (char) c;
              }
          } else if ((c == 0x08) || (c == 0x7F)) {
             if(input->len > 0) {
-            	SHELL_PUTS(BACKSPACE_CLEAR_TOKEN);
+            	shell_puts(SHELL_BACKSPACE);
                 input->buffer[--input->len] = '\0';
             }
         }
@@ -120,7 +120,7 @@ static int _parse(struct shell_ctx *ctx, char *buffer, size_t len)
     } else {    
         char scratch[SHELL_CONFIG_INPUT_BUFFER_MAX];
         int argc = 1;
-        char *argv[SHELL_CONFIG_INPUT_ARGS_MAX];
+        const char *argv[SHELL_CONFIG_INPUT_ARGS_MAX];
         size_t i = 0;
   
         memcpy(scratch, buffer, len);
@@ -144,20 +144,20 @@ static int _parse(struct shell_ctx *ctx, char *buffer, size_t len)
         for (i = 0; i < ctx->cmd_list_len; i++) {
             if (!strcmp(ctx->cmd_list[i].name, argv[0])) {
                 if (ctx->cmd_list[i].funcptr(argc, argv) != 0) {
-                    SHELL_PUTS(ctx->cmd_list[i].name);
-                    SHELL_PUTS(": ");
-                    SHELL_PUTS(ctx->cmd_list[i].desc);
-					SHELL_PUTS("\n\tUsage ");
-					SHELL_PUTS(ctx->cmd_list[i].usage);
+                    shell_puts(ctx->cmd_list[i].name);
+                    shell_puts(": ");
+                    shell_puts(ctx->cmd_list[i].desc);
+					shell_puts("\n\tUsage ");
+					shell_puts(ctx->cmd_list[i].usage);
                 }
                 break;
             } 
         }
 
         if (i == ctx->cmd_list_len) {
-        	SHELL_PUTS(NEWLINE_TOKEN);
-        	SHELL_PUTS(argv[0]);
-			SHELL_PUTS(": Command not found"NEWLINE_TOKEN);
+        	shell_puts(SHELL_NEWLINE);
+        	shell_puts(argv[0]);
+			shell_puts(": Command not found"SHELL_NEWLINE);
         }
     }
     

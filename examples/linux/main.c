@@ -12,12 +12,13 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <termios.h>
+#include <stdlib.h>
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof(x[0]))
 
 static void _enable_raw_mode(void); 
 static void _disable_raw_mode(void);
-static int _help(int argc, char *argv[]);
+static int _help(int argc, const char *argv[]);
 
 static const struct shell_cmd _cmd_list[] = {
     {
@@ -53,7 +54,7 @@ static void _enable_raw_mode(void)
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
 }
 
-static int _help(int argc, char *argv[])
+static int _help(int argc, const char *argv[])
 {
     size_t i;
 
@@ -68,5 +69,24 @@ static int _help(int argc, char *argv[])
 
     return 0;
 }
+
+/* See declaration for documentation */
+int shell_putchar(char c)
+{
+    return putchar(c);
+}
+
+/* See declaration for documentation */
+int shell_puts(const char *text)
+{
+    return fputs(text, stdout);  // we dont want the \n from puts()
+}
+
+/* See declaration for documentation */
+int shell_getchar(void)
+{
+    return getc(stdin);
+}
+
 
 
