@@ -35,8 +35,34 @@ struct shell_ctx
 
 static int _parse(struct shell_ctx *ctx, char *buffer, size_t len);
 
+/**
+ * @brief prints available commands
+ * 
+ * @param argc unused
+ * @param argv unused
+ * @return int 0
+ */
+static int _cli_help(struct shell_ctx *ctx)
+{
+    shell_puts("Console Help - available commands:"SHELL_NEWLINE);
+    for (size_t i = 0; i < ctx->cmd_list_len; i++) {
+        shell_printf(SHELL_NEWLINE"Command: %s"SHELL_NEWLINE"-----------------"SHELL_NEWLINE, ctx->cmd_list[i].name);
+        shell_printf("Usage: %s"SHELL_NEWLINE,
+                     (ctx->cmd_list[i].usage == NULL) ? "" : ctx->cmd_list[i].usage);
+        shell_printf("Description: %s"SHELL_NEWLINE, ctx->cmd_list[i].desc);
+    }
+
+    shell_printf(SHELL_NEWLINE"Shell Control Commands"SHELL_NEWLINE"-----------------"SHELL_NEWLINE);
+    shell_printf("exit: closes the shell task"SHELL_NEWLINE);
+    shell_printf("help: prints this menu"SHELL_NEWLINE);
+    shell_printf(SHELL_NEWLINE);
+    return 0;
+}
+
 void shell(const struct shell_cmd *cmd_list, size_t cmd_list_len)
 {
+    shell_printf(SHELL_NEWLINE"SIMPLY EMBEDDED POSIX SHELL"SHELL_NEWLINE);
+    shell_printf("Try \"help\" to view available commands"SHELL_NEWLINE);
     static struct shell_ctx ctx;
 
     memset(&ctx, 0, sizeof(ctx));
@@ -47,6 +73,7 @@ void shell(const struct shell_cmd *cmd_list, size_t cmd_list_len)
     shell_puts(SHELL_PROMPT);
 
     while (1) {
+        shell_pet_watchdog();
         struct input *input = &ctx.cmd_history[ctx.cmd_idx];
         int c = shell_getchar();
         if ((c == '\r') || (c == '\n')) {
@@ -117,6 +144,8 @@ static int _parse(struct shell_ctx *ctx, char *buffer, size_t len)
 {
     if (!strcmp(buffer, "exit")) {
         return -1;
+    } else if (!strcmp(buffer, "help")){
+        _cli_help(ctx);
     } else {    
         char scratch[SHELL_CONFIG_INPUT_BUFFER_MAX];
         int argc = 1;
@@ -143,21 +172,17 @@ static int _parse(struct shell_ctx *ctx, char *buffer, size_t len)
 
         for (i = 0; i < ctx->cmd_list_len; i++) {
             if (!strcmp(ctx->cmd_list[i].name, argv[0])) {
-                if (ctx->cmd_list[i].funcptr(argc, argv) != 0) {
-                    shell_puts(ctx->cmd_list[i].name);
-                    shell_puts(": ");
-                    shell_puts(ctx->cmd_list[i].desc);
-					shell_puts("\n\tUsage ");
-					shell_puts(ctx->cmd_list[i].usage);
+                int errcode = ctx->cmd_list[i].funcptr(argc, argv);
+                if (errcode != 0) {
+                    shell_printf("%s: returned non-zero error code [%d]"SHELL_NEWLINE, ctx->cmd_list[i].name, errcode);
+                    shell_printf("Usage: %s"SHELL_NEWLINE, ctx->cmd_list[i].usage);
                 }
                 break;
             } 
         }
 
         if (i == ctx->cmd_list_len) {
-        	shell_puts(SHELL_NEWLINE);
-        	shell_puts(argv[0]);
-			shell_puts(": Command not found"SHELL_NEWLINE);
+            shell_printf("%s: Command not found"SHELL_NEWLINE, argv[0]);
         }
     }
     
