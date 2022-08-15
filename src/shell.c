@@ -73,7 +73,6 @@ void shell(const struct shell_cmd *cmd_list, size_t cmd_list_len)
     shell_puts(SHELL_PROMPT);
 
     while (1) {
-        shell_pet_watchdog();
         struct input *input = &ctx.cmd_history[ctx.cmd_idx];
         int c = shell_getchar();
         if ((c == '\r') || (c == '\n')) {
