@@ -9,13 +9,12 @@
  */
 
 #include "shell.h"
-#include "shell_config.h"
+#include "shell_port.h"
 
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
 
-#define PROMPT_PREFIX          "\r\n$ "
 #define is_space(x)             ((x)==' ' || (x)=='\t')
 
 struct input 
@@ -36,8 +35,34 @@ struct shell_ctx
 
 static int _parse(struct shell_ctx *ctx, char *buffer, size_t len);
 
+/**
+ * @brief prints available commands
+ * 
+ * @param argc unused
+ * @param argv unused
+ * @return int 0
+ */
+static int _cli_help(struct shell_ctx *ctx)
+{
+    shell_puts("Console Help - available commands:"SHELL_NEWLINE);
+    for (size_t i = 0; i < ctx->cmd_list_len; i++) {
+        shell_printf(SHELL_NEWLINE"Command: %s"SHELL_NEWLINE"-----------------"SHELL_NEWLINE, ctx->cmd_list[i].name);
+        shell_printf("Usage: %s"SHELL_NEWLINE,
+                     (ctx->cmd_list[i].usage == NULL) ? "" : ctx->cmd_list[i].usage);
+        shell_printf("Description: %s"SHELL_NEWLINE, ctx->cmd_list[i].desc);
+    }
+
+    shell_printf(SHELL_NEWLINE"Shell Control Commands"SHELL_NEWLINE"-----------------"SHELL_NEWLINE);
+    shell_printf("exit: closes the shell task"SHELL_NEWLINE);
+    shell_printf("help: prints this menu"SHELL_NEWLINE);
+    shell_printf(SHELL_NEWLINE);
+    return 0;
+}
+
 void shell(const struct shell_cmd *cmd_list, size_t cmd_list_len)
 {
+    shell_printf(SHELL_NEWLINE"SIMPLY EMBEDDED POSIX SHELL"SHELL_NEWLINE);
+    shell_printf("Try \"help\" to view available commands"SHELL_NEWLINE);
     static struct shell_ctx ctx;
 
     memset(&ctx, 0, sizeof(ctx));
@@ -45,13 +70,13 @@ void shell(const struct shell_cmd *cmd_list, size_t cmd_list_len)
     ctx.cmd_list = cmd_list;
     ctx.cmd_list_len = cmd_list_len;
 
-    SHELL_PUTS(PROMPT_PREFIX);
+    shell_puts(SHELL_PROMPT);
 
     while (1) {
         struct input *input = &ctx.cmd_history[ctx.cmd_idx];
-        int c = SHELL_GETC();
+        int c = shell_getchar();
         if ((c == '\r') || (c == '\n')) {
-            SHELL_PUTS("\n\r");
+            shell_puts(SHELL_NEWLINE);
             if (input->len > 0) {
                 if(_parse(&ctx, input->buffer, input->len) < 0) {
                     break;
@@ -62,7 +87,7 @@ void shell(const struct shell_cmd *cmd_list, size_t cmd_list_len)
                 }
             }                    
 
-            SHELL_PUTS(PROMPT_PREFIX);
+            shell_puts(SHELL_PROMPT);
 		} else if (c == 0x1B) {
 			ctx.seq = true; 
 		} else if (ctx.seq && (c == 0x5B)) {
@@ -74,8 +99,8 @@ void shell(const struct shell_cmd *cmd_list, size_t cmd_list_len)
 
             if (ctx.cmd_idx > 0) {
                 ctx.cmd_idx--;
-                SHELL_PUTS("\r$ ");
-                SHELL_PUTS(ctx.cmd_history[ctx.cmd_idx].buffer);
+                shell_puts("\r$ ");
+                shell_puts(ctx.cmd_history[ctx.cmd_idx].buffer);
 			}
 		} else if ((ctx.seq == true) && (ctx.dir == true) && (c == 0x42)) {
 		    /* down arrow */
@@ -85,8 +110,8 @@ void shell(const struct shell_cmd *cmd_list, size_t cmd_list_len)
              if (ctx.cmd_idx < SHELL_CONFIG_HISTORY_MAX) {
                  if (input->len > 0) {
                     ctx.cmd_idx++;
-                    SHELL_PUTS("\r$ ");
-                    SHELL_PUTS(ctx.cmd_history[ctx.cmd_idx].buffer);
+                    shell_puts("\r$ ");
+                    shell_puts(ctx.cmd_history[ctx.cmd_idx].buffer);
                  }
 			}
 		} else if ((ctx.seq == true) && (ctx.dir == true) && (c == 0x43)) {
@@ -95,17 +120,19 @@ void shell(const struct shell_cmd *cmd_list, size_t cmd_list_len)
             ctx.dir = false;
 		} else if ((ctx.seq == true) && (ctx.dir == true) && (c == 0x44)) {
 			/* left arrow */
-			putchar('\b');
+			shell_putchar('\b');
 			ctx.seq = false;
             ctx.dir = false;
          } else if ((c >= 0x20) && (c < 0x7E)) {
              if (input->len < SHELL_CONFIG_INPUT_BUFFER_MAX) {
-                 SHELL_PUTCHAR(c);
+                #if SHELL_ECHO
+                    shell_putchar(c);
+                #endif
                  input->buffer[input->len++] = (char) c;
              }
          } else if ((c == 0x08) || (c == 0x7F)) {
             if(input->len > 0) {
-            	SHELL_PUTS("\b \b");
+            	shell_puts(SHELL_BACKSPACE);
                 input->buffer[--input->len] = '\0';
             }
         }
@@ -116,10 +143,12 @@ static int _parse(struct shell_ctx *ctx, char *buffer, size_t len)
 {
     if (!strcmp(buffer, "exit")) {
         return -1;
+    } else if (!strcmp(buffer, "help")){
+        _cli_help(ctx);
     } else {    
         char scratch[SHELL_CONFIG_INPUT_BUFFER_MAX];
         int argc = 1;
-        char *argv[SHELL_CONFIG_INPUT_ARGS_MAX];
+        const char *argv[SHELL_CONFIG_INPUT_ARGS_MAX];
         size_t i = 0;
   
         memcpy(scratch, buffer, len);
@@ -142,21 +171,17 @@ static int _parse(struct shell_ctx *ctx, char *buffer, size_t len)
 
         for (i = 0; i < ctx->cmd_list_len; i++) {
             if (!strcmp(ctx->cmd_list[i].name, argv[0])) {
-                if (ctx->cmd_list[i].funcptr(argc, argv) != 0) {
-                    SHELL_PUTS(ctx->cmd_list[i].name);
-                    SHELL_PUTS(": ");
-                    SHELL_PUTS(ctx->cmd_list[i].desc);
-					SHELL_PUTS("\n\tUsage ");
-					SHELL_PUTS(ctx->cmd_list[i].usage);
+                int errcode = ctx->cmd_list[i].funcptr(argc, argv);
+                if (errcode != 0) {
+                    shell_printf("%s: returned non-zero error code [%d]"SHELL_NEWLINE, ctx->cmd_list[i].name, errcode);
+                    shell_printf("Usage: %s"SHELL_NEWLINE, ctx->cmd_list[i].usage);
                 }
                 break;
             } 
         }
 
         if (i == ctx->cmd_list_len) {
-        	SHELL_PUTS("\n");
-        	SHELL_PUTS(argv[0]);
-			SHELL_PUTS(": Command not found\n");
+            shell_printf("%s: Command not found"SHELL_NEWLINE, argv[0]);
         }
     }
     
